@@ -74,3 +74,9 @@ body {
   top: 85px;
   left: 10px;
 }
+
+.clear-canvas-butt {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+}

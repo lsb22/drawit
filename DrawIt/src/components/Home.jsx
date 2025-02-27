@@ -92,6 +92,15 @@ const Home = () => {
         <input type="color" onChange={(e) => setShapeColor(e.target.value)} />
         <div className="shapes-after-container"></div>
       </div>
+      <button
+        className="clear-canvas-butt"
+        onClick={() => {
+          canva.clear();
+          canva.backgroundColor = "black";
+        }}
+      >
+        clear canvas
+      </button>
     </div>
   );
 };
