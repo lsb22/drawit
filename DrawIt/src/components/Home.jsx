@@ -5,6 +5,8 @@ const Home = () => {
   const canvaRef = useRef(null);
   const [canva, setCanva] = useState(null);
   const [drawing, setDrawing] = useState(false);
+  const [brushColor, setBrushColor] = useState("");
+  const [shapeColor, setShapeColor] = useState("");
 
   useEffect(() => {
     if (canvaRef.current) {
@@ -30,13 +32,14 @@ const Home = () => {
     if (canva) {
       if (drawing) canva.isDrawingMode = true;
       else canva.isDrawingMode = false;
+      canva.freeDrawingBrush.color = brushColor ? brushColor : "white";
     }
-  }, [drawing]);
+  }, [drawing, brushColor]);
 
   const addRectangle = () => {
     if (canva) {
       const rect = new Rect({
-        fill: "skyblue",
+        fill: shapeColor ? shapeColor : "skyblue",
         width: 100,
         height: 60,
         top: Math.random() * 600 + 1,
@@ -50,7 +53,7 @@ const Home = () => {
   const addCircle = () => {
     if (canva) {
       const circle = new Circle({
-        fill: "skyblue",
+        fill: shapeColor ? shapeColor : "skyblue",
         radius: 50,
         top: Math.random() * 600 + 1,
         left: Math.random() * 900 + 1,
@@ -80,6 +83,15 @@ const Home = () => {
       <button className="toggleDrawing" onClick={toggleDrawing}>
         {`Switch ${drawing ? "of" : "on"} drawing`}
       </button>
+      <div className="color-input">
+        <input type="color" onChange={(e) => setBrushColor(e.target.value)} />
+        <div className="after-container"></div>
+      </div>
+
+      <div className="shapes-color-input">
+        <input type="color" onChange={(e) => setShapeColor(e.target.value)} />
+        <div className="shapes-after-container"></div>
+      </div>
     </div>
   );
 };
