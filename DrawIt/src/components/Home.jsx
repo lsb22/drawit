@@ -1,5 +1,7 @@
 import { Canvas, Rect, Circle, PencilBrush } from "fabric";
 import { useRef, useEffect, useState } from "react";
+import socket from "../services/Socket";
+import { v1 as uuid } from "uuid";
 
 const Home = () => {
   const canvaRef = useRef(null);
@@ -7,6 +9,86 @@ const Home = () => {
   const [drawing, setDrawing] = useState(false);
   const [brushColor, setBrushColor] = useState("");
   const [shapeColor, setShapeColor] = useState("");
+
+  const emitAdd = (obj) => {
+    socket.emit("object-added", obj);
+  };
+
+  const emitModify = (obj) => {
+    socket.emit("object-modified", obj);
+  };
+
+  const addObj = () => {
+    if (canva) {
+      socket.off("new-add");
+      socket.on("new-add", (data) => {
+        console.log(data);
+        const { obj, id } = data;
+        if (obj.type === "Rect") {
+          const rect = new Rect({
+            height: obj.height,
+            width: obj.width,
+            top: obj.top,
+            left: obj.left,
+            fill: "red",
+          });
+          rect.set({ id: id });
+          canva.add(rect);
+          canva.renderAll();
+        } else if (obj.type === "Circle") {
+          const circle = new Circle({
+            radius: obj.radius,
+            fill: "red",
+            top: obj.top,
+            left: obj.left,
+          });
+          circle.set({ id: id });
+          canva.add(circle);
+          canva.renderAll();
+        }
+      });
+    }
+  };
+
+  const modifyObj = () => {
+    socket.on("new-modification", (data) => {
+      const { obj, id } = data;
+      canva.getObjects().forEach((object) => {
+        if (object.id === id) {
+          object.set(obj);
+          object.setCoords();
+          canva.renderAll();
+        }
+      });
+    });
+  };
+
+  useEffect(() => {
+    if (canva) {
+      canva.on("object:modified", function (options) {
+        if (options.target) {
+          const modifiedObj = {
+            obj: options.target,
+            id: options.target.id,
+          };
+          emitModify(modifiedObj);
+        }
+      });
+
+      canva.on("object:moving", function (options) {
+        if (options.target) {
+          const modifiedObj = {
+            obj: options.target,
+            id: options.target.id,
+          };
+          emitModify(modifiedObj);
+        }
+      });
+
+      modifyObj();
+      addObj();
+    }
+  }, [canva]);
 
   useEffect(() => {
     if (canvaRef.current) {
@@ -46,7 +128,10 @@ const Home = () => {
         left: Math.random() * 900 + 1,
       });
 
+      rect.set({ id: uuid() });
       canva.add(rect);
+      canva.renderAll();
+      emitAdd({ obj: rect, id: rect.id });
     }
   };
 
@@ -59,7 +144,10 @@ const Home = () => {
         left: Math.random() * 900 + 1,
       });
 
+      circle.set({ id: uuid() });
       canva.add(circle);
+      canva.renderAll();
+      emitAdd({ obj: circle, id: circle.id });
     }
   };
 
