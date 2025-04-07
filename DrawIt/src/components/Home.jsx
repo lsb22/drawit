@@ -1,7 +1,7 @@
-import { Canvas, Rect, Circle, PencilBrush } from "fabric";
-import { useRef, useEffect, useState } from "react";
-import socket from "../services/Socket";
 import { v1 as uuid } from "uuid";
+import socket from "../services/Socket";
+import { useRef, useEffect, useState } from "react";
+import { Canvas, Rect, Circle, PencilBrush, ActiveSelection } from "fabric";
 
 const Home = () => {
   const canvaRef = useRef(null);
@@ -18,6 +18,18 @@ const Home = () => {
     socket.emit("object-modified", obj);
   };
 
+  const emitActiveSelection = (arr) => {
+    socket.emit("newActiveSelection", arr);
+  };
+
+  const emitClearSelection = () => {
+    socket.emit("clearSelection");
+  };
+
+  const emitSelectionUpdated = (arr) => {
+    socket.emit("selectionUpdated", arr);
+  };
+
   const addObj = () => {
     if (canva) {
       socket.off("new-add");
@@ -30,7 +42,7 @@ const Home = () => {
             width: obj.width,
             top: obj.top,
             left: obj.left,
-            fill: "red",
+            fill: obj.fill,
           });
           rect.set({ id: id });
           canva.add(rect);
@@ -38,7 +50,7 @@ const Home = () => {
         } else if (obj.type === "Circle") {
           const circle = new Circle({
             radius: obj.radius,
-            fill: "red",
+            fill: obj.fill,
             top: obj.top,
             left: obj.left,
           });
@@ -52,10 +64,14 @@ const Home = () => {
 
   const modifyObj = () => {
     socket.on("new-modification", (data) => {
+      console.log(data);
       const { obj, id } = data;
       canva.getObjects().forEach((object) => {
         if (object.id === id) {
-          object.set(obj);
+          object.scaleX = obj.scaleX;
+          object.scaleY = obj.scaleY;
+          object.left = obj.left;
+          object.top = obj.top;
           object.setCoords();
           canva.renderAll();
         }
@@ -65,7 +81,26 @@ const Home = () => {
 
   useEffect(() => {
     if (canva) {
-      canva.on("object:modified", function (options) {
+      let isFromSocket = false;
+
+      const handleObjectModified = (options) => {
+        if (options.target) {
+          // if (options.target.type === "activeselection") {
+          //   const arr = options.target.getObjects();
+          //   for (let i of arr) {
+          //     console.log(i.type);
+          //   }
+          // }
+          const modifiedObj = {
+            obj: options.target,
+            id: options.target.id,
+          };
+          emitModify(modifiedObj);
+        }
+      };
+
+      const handleObjectMoving = (options) => {
+        console.log("object moved");
         if (options.target) {
           const modifiedObj = {
             obj: options.target,
@@ -73,20 +108,98 @@ const Home = () => {
           };
           emitModify(modifiedObj);
         }
+      };
+
+      const handleSelectionCreated = (e) => {
+        if (isFromSocket) {
+          return;
+        }
+        console.log(e.selected[0].id);
+        const ids = [];
+        for (let obj of e.selected) ids.push(obj.id);
+        emitActiveSelection(ids);
+      };
+
+      const handleClearSelection = () => {
+        if (isFromSocket) {
+          return;
+        }
+        emitClearSelection();
+        canva.discardActiveObject();
+        canva.requestRenderAll();
+      };
+
+      const handleSelectionUpdated = (e) => {
+        if (isFromSocket) {
+          return;
+        }
+        console.log(e.selected[0].id);
+        const ids = [];
+        for (let obj of e.selected) ids.push(obj.id);
+        emitSelectionUpdated(ids);
+      };
+
+      canva.on("object:modified", handleObjectModified);
+      canva.on("object:moving", handleObjectMoving);
+      canva.on("selection:created", handleSelectionCreated);
+      canva.on("selection:cleared", handleClearSelection);
+      canva.on("selection:updated", handleSelectionUpdated);
+
+      socket.on("create-active-selection", (data) => {
+        isFromSocket = true;
+        const arr = canva.getObjects();
+        const objs = arr.filter((obj) => data.includes(obj.id));
+        canva.discardActiveObject();
+        if (objs.length > 0) {
+          const activeSelection = new ActiveSelection(objs); // for selecting objects on the canvas
+          canva.setActiveObject(activeSelection);
+        }
+        canva.requestRenderAll();
+        setTimeout(() => {
+          isFromSocket = false;
+        }, 0);
       });
 
-      canva.on("object:moving", function (options) {
-        if (options.target) {
-          const modifiedObj = {
-            obj: options.target,
-            id: options.target.id,
-          };
-          emitModify(modifiedObj);
+      socket.on("clear-current-selection", () => {
+        isFromSocket = true;
+        canva.discardActiveObject();
+        canva.requestRenderAll();
+        setTimeout(() => {
+          isFromSocket = false;
+        }, 0);
+      });
+
+      socket.on("update-current-selection", (data) => {
+        isFromSocket = true;
+        const arr = canva.getObjects();
+        const objs = arr.filter((obj) => data.includes(obj.id));
+        canva.discardActiveObject();
+        if (objs.length > 0) {
+          const activeSelection = new ActiveSelection(objs); // for selecting objects on the canvas
+          canva.setActiveObject(activeSelection);
         }
+        canva.requestRenderAll();
+        setTimeout(() => {
+          isFromSocket = false;
+        }, 0);
       });
 
       modifyObj();
       addObj();
+
+      return () => {
+        canva.off("object:moving", handleObjectMoving);
+        canva.off("object:modified", handleObjectModified);
+        canva.off("selection:cleared", handleClearSelection);
+        canva.off("selection:created", handleSelectionCreated);
+        canva.off("selection:updated", handleSelectionUpdated);
+
+        socket.off("new-add");
+        socket.off("new-modification");
+        socket.off("create-active-selection");
+        socket.off("clear-current-selection");
+        socket.off("update-current-selection");
+      };
     }
   }, [canva]);
 
@@ -124,7 +237,7 @@ const Home = () => {
         fill: shapeColor ? shapeColor : "skyblue",
         width: 100,
         height: 60,
-        top: Math.random() * 600 + 1,
+        top: Math.random() * 300 + 1,
         left: Math.random() * 900 + 1,
       });
 

@@ -22,6 +22,18 @@ io.on("connection", (socket) => {
   socket.on("object-modified", (data) => {
     socket.broadcast.emit("new-modification", data);
   });
+
+  socket.on("newActiveSelection", (data) => {
+    socket.broadcast.emit("create-active-selection", data);
+  });
+
+  socket.on("clearSelection", () => {
+    socket.broadcast.emit("clear-current-selection");
+  });
+
+  socket.on("selectionUpdated", (data) => {
+    socket.broadcast.emit("update-current-selection", data);
+  });
 });
 
 server.listen(3000, () => console.log("server stated on port 3000"));
