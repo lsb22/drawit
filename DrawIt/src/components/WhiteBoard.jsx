@@ -11,7 +11,7 @@ const WhiteBoard = () => {
   const [shapeColor, setShapeColor] = useState("");
 
   const emitAdd = (obj) => {
-    socket.emit("object-added", obj);
+    socket.emit("object-added", socket.roomName, obj);
   };
 
   const emitModify = (obj) => {
@@ -23,7 +23,7 @@ const WhiteBoard = () => {
       angle: obj.obj.angle || 0,
       type: obj.obj.type,
     };
-    socket.emit("object-modified", {
+    socket.emit("object-modified", socket.roomName, {
       obj: essentialProps,
       id: obj.id,
     });
@@ -197,7 +197,7 @@ const WhiteBoard = () => {
   return (
     <div>
       <canvas id="c" ref={canvaRef}></canvas>
-      <div className="toolBar">
+      <div className="absolute top-[calc(50%-30px)] flex flex-col gap-2 rounded-[7px] left-[10px] p-[10px] bg-[#4024c0]">
         <button className="rect" onClick={addRectangle}>
           {"[]"}
         </button>
@@ -205,7 +205,10 @@ const WhiteBoard = () => {
           {"O"}
         </button>
       </div>
-      <button className="toggleDrawing" onClick={toggleDrawing}>
+      <button
+        className="absolute top-[20px] left-[10px] bg-gray-200 text-black rounded-md px-2 text-[16px] hover:opacity-80"
+        onClick={toggleDrawing}
+      >
         {`Switch ${drawing ? "of" : "on"} drawing`}
       </button>
       <div className="color-input">
@@ -218,7 +221,7 @@ const WhiteBoard = () => {
         <div className="shapes-after-container"></div>
       </div>
       <button
-        className="clear-canvas-butt"
+        className="absolute top-[10px] right-[10px] bg-gray-200 text-black px-2 py-1 rounded-md active:scale-90 cursor-pointer"
         onClick={() => {
           canva.clear();
           canva.backgroundColor = "black";

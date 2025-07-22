@@ -15,24 +15,6 @@ body {
   position: relative;
 }
 
-.toolBar {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  top: calc(50% - 30px);
-  border-radius: 7px;
-  left: 10px;
-  padding: 10px;
-  background-color: rgb(64, 36, 192);
-}
-
-.toggleDrawing {
-  position: absolute;
-  top: 20px;
-  left: 10px;
-}
-
 .color-input {
   position: absolute;
   top: 50px;
@@ -75,10 +57,4 @@ body {
   position: absolute;
   top: 85px;
   left: 10px;
-}
-
-.clear-canvas-butt {
-  position: absolute;
-  right: 10px;
-  top: 10px;
 }
