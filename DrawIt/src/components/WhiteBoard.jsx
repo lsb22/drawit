@@ -3,7 +3,7 @@ import socket from "../services/Socket";
 import { useRef, useEffect, useState } from "react";
 import { Canvas, Rect, Circle, PencilBrush, ActiveSelection } from "fabric";
 
-const Home = () => {
+const WhiteBoard = () => {
   const canvaRef = useRef(null);
   const [canva, setCanva] = useState(null);
   const [drawing, setDrawing] = useState(false);
@@ -230,4 +230,4 @@ const Home = () => {
   );
 };
 
-export default Home;
+export default WhiteBoard;
