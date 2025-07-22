@@ -1,7 +1,7 @@
-import Home from "./components/Home";
+import WhiteBoard from "./components/WhiteBoard";
 
 const App = () => {
-  return <Home />;
+  return <WhiteBoard />;
 };
 
 export default App;
