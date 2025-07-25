@@ -9,6 +9,7 @@ app.use(cors());
 app.use(express.json());
 
 const rooms = {};
+const roomList = [];
 
 const io = new Server(server, {
   cors: {
@@ -23,9 +24,13 @@ const io = new Server(server, {
 io.on("connection", (socket) => {
   socket.on("new-user", (roomName, userName) => {
     socket.join(roomName);
-    console.log(rooms);
     rooms[roomName].users[socket.id] = userName; // add the user to the respective room
     socket.to(roomName).emit("user-connected", userName); // emit to all users except the current user in that room
+  });
+
+  socket.on("disconnecting", (socket) => {
+    console.log("exiting room");
+    console.log(socket);
   });
 
   socket.on("object-added", (roomName, data) => {
@@ -35,7 +40,27 @@ io.on("connection", (socket) => {
   socket.on("object-modified", (roomName, data) => {
     socket.to(roomName).emit("new-modification", data);
   });
+
+  socket.on("disconnect", () => {
+    const arr = getUserRooms(socket);
+    arr.forEach((room) => {
+      socket.to(room).emit("user-disconnected", rooms[room].users[socket.id]);
+      delete rooms[room].users[socket.id];
+    });
+  });
 });
+
+function getUserRooms(socket) {
+  const temp = Object.entries(rooms);
+  if (temp.length === 0) return [];
+  const res = [];
+
+  for (let i = 0; i < temp.length; i++) {
+    const roomName = temp[i][0];
+    if (rooms[roomName].users[socket.id] !== null) res.push(roomName); // list all the rooms where user exists
+  }
+  return res;
+}
 
 app.post("/room", (req, res) => {
   if (!req.body) return res.status(400).json({ message: "Room name is empty" });
@@ -47,12 +72,18 @@ app.post("/room", (req, res) => {
       .json({ message: "Already exists", roomName: roomName });
   }
 
+  if (!roomList.includes(roomName)) roomList.push(roomName);
+
   rooms[roomName] = { users: {} };
   io.emit("room-created", roomName); // emits for everyone including the current user
   res.status(200).json({
     message: "Room created successfully",
     roomName: roomName,
   });
+});
+
+app.get("/rooms", (req, res) => {
+  res.status(200).json({ rooms: roomList });
 });
 
 server.listen(3000, () => console.log("server stated on port 3000"));

@@ -10,6 +10,7 @@ const Home = () => {
   const userRef = useRef(null);
   const navigate = useNavigate();
   const [rooms, setRooms] = useState([]);
+  const [totalRooms, setTotalRooms] = useState(0);
 
   const handleFormSibmit = (e) => {
     e.preventDefault();
@@ -33,10 +34,29 @@ const Home = () => {
     userRef.current.value = "";
   };
 
+  const handleExistingRoomClick = (roomName) => {
+    const userName = prompt("Enter your Name");
+    socket.emit("new-user", roomName, userName);
+    navigate("/room/" + roomName);
+  };
+
   useEffect(() => {
-    socket.on("room-created", (roomName) => {
-      setRooms([...rooms, roomName]);
+    // to get existing rooms list
+    apiClient
+      .get("/rooms")
+      .then((res) => setRooms(res.data.rooms))
+      .catch((err) => console.log(err.data));
+  }, [totalRooms]);
+
+  useEffect(() => {
+    socket.on("room-created", (data) => {
+      // to increment the room number
+      setTotalRooms((prev) => prev + 1);
     });
+
+    return () => {
+      socket.off("room-created");
+    };
   }, []);
 
   return (
@@ -83,7 +103,9 @@ const Home = () => {
           {rooms.length !== 0 &&
             rooms.map((room, idx) => (
               <li key={idx}>
-                <a href="">{room}</a>
+                <button onClick={() => handleExistingRoomClick(room)}>
+                  {room}
+                </button>
               </li>
             ))}
         </ul>
