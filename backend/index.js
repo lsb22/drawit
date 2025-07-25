@@ -8,8 +8,8 @@ const server = createServer(app);
 app.use(cors());
 app.use(express.json());
 
-const rooms = {};
-const roomList = [];
+const rooms = {}; // stores rooms, with users
+const roomList = []; // list of rooms
 
 const io = new Server(server, {
   cors: {
@@ -23,25 +23,24 @@ const io = new Server(server, {
 
 io.on("connection", (socket) => {
   socket.on("new-user", (roomName, userName) => {
+    // joins user to a specific room
     socket.join(roomName);
     rooms[roomName].users[socket.id] = userName; // add the user to the respective room
     socket.to(roomName).emit("user-connected", userName); // emit to all users except the current user in that room
   });
 
-  socket.on("disconnecting", (socket) => {
-    console.log("exiting room");
-    console.log(socket);
-  });
-
   socket.on("object-added", (roomName, data) => {
+    // communicates object addition to all users of a specific room
     socket.to(roomName).emit("new-add", data);
   });
 
   socket.on("object-modified", (roomName, data) => {
+    // communicates object modification to all users of a specific room
     socket.to(roomName).emit("new-modification", data);
   });
 
   socket.on("disconnect", () => {
+    // removes users from all their rooms
     const arr = getUserRooms(socket);
     arr.forEach((room) => {
       socket.to(room).emit("user-disconnected", rooms[room].users[socket.id]);
