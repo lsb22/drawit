@@ -10,6 +10,7 @@ app.use(express.json());
 
 const rooms = {}; // stores rooms, with users
 const roomList = []; // list of rooms
+const roomData = new Map();
 
 const io = new Server(server, {
   cors: {
@@ -31,11 +32,19 @@ io.on("connection", (socket) => {
 
   socket.on("object-added", (roomName, data) => {
     // communicates object addition to all users of a specific room
+    const { obj, id } = data;
+    const newObj = JSON.parse(obj);
+    if (!roomData.has(roomName)) roomData.set(roomName, {});
+    roomData.get(roomName)[id] = newObj;
     socket.to(roomName).emit("new-add", data);
   });
 
   socket.on("object-modified", (roomName, data) => {
     // communicates object modification to all users of a specific room
+    const { obj, id } = data;
+    const newObj = JSON.parse(obj);
+    if (!roomData.has(roomName)) roomData.set(roomName, {});
+    roomData.get(roomName)[id] = newObj;
     socket.to(roomName).emit("new-modification", data);
   });
 
@@ -72,6 +81,7 @@ app.post("/room", (req, res) => {
   }
 
   if (!roomList.includes(roomName)) roomList.push(roomName);
+  if (!roomData.has(roomName)) roomData.set(roomName, {});
 
   rooms[roomName] = { users: {} };
   io.emit("room-created", roomName); // emits for everyone including the current user
@@ -83,6 +93,13 @@ app.post("/room", (req, res) => {
 
 app.get("/rooms", (req, res) => {
   res.status(200).json({ rooms: roomList });
+});
+
+app.get("/room/data/:roomName", (req, res) => {
+  const { roomName } = req.params;
+  if (!roomData.has(roomName))
+    return res.status(404).json({ message: "Room is empty" });
+  res.status(200).json({ data: roomData.get(roomName) });
 });
 
 server.listen(3000, () => console.log("server stated on port 3000"));

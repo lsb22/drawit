@@ -1,7 +1,7 @@
 import { v1 as uuid } from "uuid";
 import socket from "../services/Socket";
 import { useRef, useEffect, useState } from "react";
-import { Canvas, Rect, Circle, PencilBrush, ActiveSelection } from "fabric";
+import { Canvas, Rect, Circle, PencilBrush } from "fabric";
 
 const WhiteBoard = () => {
   const canvaRef = useRef(null);
@@ -9,6 +9,7 @@ const WhiteBoard = () => {
   const [drawing, setDrawing] = useState(false);
   const [brushColor, setBrushColor] = useState("");
   const [shapeColor, setShapeColor] = useState("");
+  let isFromSocket = false;
 
   const emitAdd = (obj) => {
     socket.emit("object-added", socket.roomName, obj);
@@ -24,7 +25,7 @@ const WhiteBoard = () => {
       type: obj.obj.type,
     };
     socket.emit("object-modified", socket.roomName, {
-      obj: essentialProps,
+      obj: JSON.stringify(essentialProps),
       id: obj.id,
     });
   };
@@ -33,25 +34,25 @@ const WhiteBoard = () => {
     if (canva) {
       socket.off("new-add");
       socket.on("new-add", (data) => {
-        console.log(data);
         const { obj, id } = data;
-        if (obj.type === "Rect") {
+        const newObj = JSON.parse(obj);
+        if (newObj.type === "rect") {
           const rect = new Rect({
-            height: obj.height,
-            width: obj.width,
-            top: obj.top,
-            left: obj.left,
-            fill: obj.fill,
+            height: newObj.height,
+            width: newObj.width,
+            top: newObj.top,
+            left: newObj.left,
+            fill: newObj.fill,
           });
           rect.set({ id: id });
           canva.add(rect);
           canva.renderAll();
-        } else if (obj.type === "Circle") {
+        } else if (newObj.type === "circle") {
           const circle = new Circle({
-            radius: obj.radius,
-            fill: obj.fill,
-            top: obj.top,
-            left: obj.left,
+            radius: newObj.radius,
+            fill: newObj.fill,
+            top: newObj.top,
+            left: newObj.left,
           });
           circle.set({ id: id });
           canva.add(circle);
@@ -63,26 +64,28 @@ const WhiteBoard = () => {
 
   const modifyObj = () => {
     socket.on("new-modification", (data) => {
-      console.log(data);
+      isFromSocket = true;
       const { obj, id } = data;
+      const newObj = JSON.parse(obj);
       canva.getObjects().forEach((object) => {
         if (object.id === id) {
-          object.scaleX = obj.scaleX;
-          object.scaleY = obj.scaleY;
-          object.left = obj.left;
-          object.top = obj.top;
-          object.angle = obj.angle;
+          object.scaleX = newObj.scaleX;
+          object.scaleY = newObj.scaleY;
+          object.left = newObj.left;
+          object.top = newObj.top;
+          object.angle = newObj.angle;
           object.setCoords();
           canva.renderAll();
         }
       });
+      setTimeout(() => {
+        isFromSocket = false;
+      }, 0);
     });
   };
 
   useEffect(() => {
     if (canva) {
-      let isFromSocket = false;
-
       const handleObjectModified = (options) => {
         if (isFromSocket) {
           return;
@@ -100,8 +103,6 @@ const WhiteBoard = () => {
         if (isFromSocket) {
           return;
         }
-        console.log("object moved");
-        console.log(options);
         if (options.target) {
           const modifiedObj = {
             obj: options.target,
@@ -140,6 +141,7 @@ const WhiteBoard = () => {
       newCanvas.freeDrawingBrush.width = 5;
       newCanvas.backgroundColor = "black";
       newCanvas.renderAll();
+      loadExistingData();
 
       return () => {
         newCanvas.dispose();
@@ -168,7 +170,15 @@ const WhiteBoard = () => {
       rect.set({ id: uuid() });
       canva.add(rect);
       canva.renderAll();
-      emitAdd({ obj: rect, id: rect.id });
+      const obj = {
+        height: rect.height,
+        width: rect.width,
+        fill: rect.fill,
+        top: rect.top,
+        left: rect.left,
+        type: rect.type,
+      };
+      emitAdd({ obj: JSON.stringify(obj), id: rect.id });
     }
   };
 
@@ -184,7 +194,14 @@ const WhiteBoard = () => {
       circle.set({ id: uuid() });
       canva.add(circle);
       canva.renderAll();
-      emitAdd({ obj: circle, id: circle.id });
+      const obj = {
+        radius: circle.radius,
+        top: circle.top,
+        left: circle.left,
+        fill: circle.fill,
+        type: circle.type,
+      };
+      emitAdd({ obj: JSON.stringify(obj), id: circle.id });
     }
   };
 
